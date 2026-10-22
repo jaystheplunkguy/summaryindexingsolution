@@ -1,6 +1,6 @@
 # Mobile Journey: Simple Summary Indexing
 
-**1 summary index + 25 scheduled searches (29 once steps 03/07/10/35 are added).**
+**1 summary index + 25 scheduled searches (29 once steps 03/07/10/35 are added), running every 5 minutes.**
 No lookups, KV stores, rules files or macros.
 
 ## How it works
@@ -9,10 +9,19 @@ No lookups, KV stores, rules files or macros.
    `All Order Types` line. That top part already works out one row per order (latency, success, order type).
    It is unchanged, apart from the small additions listed under "Edits" below. A 6-line footer:
    * sets `_time` to when the order started the step and `order_key` to the order/correlation id
-   * keeps only orders that started in **one 15-minute slot, 60 minutes ago** (15 minutes ago for
-     single-event steps 01/02/04/05), so each order is written **once**, after it has had time to finish
+   * keeps only orders that started in **one 5-minute slot, a set wait ago** (see the table below),
+     so each order is written **once**, after it has had time to finish
    * writes the rows with `collect index=summary_mob_journey`
-   Each run searches only the last 3 hours of raw data (1 hour for single-event steps), so there are no timeouts.
+   Searches run **every 5 minutes**, a few minutes apart. Each run searches only the wait time plus 60 minutes of
+   raw data, so there are no timeouts.
+
+   | Steps | Wait before an order is judged | Data delay on the dashboard |
+   |---|---|---|
+   | 01, 02, 04, 05 | 5 min | about 5–10 min |
+   | 06, 08, 11, 12, 19, 22 | 10 min | about 10–15 min |
+   | 09, 33 | 15 min | about 15–20 min |
+   | 20, 21, 23–31, 34 | 30 min | about 30–35 min |
+   | 32 | 40 min | about 40–45 min |
 2. **Grafana panel (49 files in `grafana/`)**:
    ```
    index=summary_mob_journey step="21"
@@ -41,10 +50,11 @@ No lookups, KV stores, rules files or macros.
 5. Switch the Grafana panel queries over.
 
 ## Things to know
-* **Data delay:** the newest hour won't appear yet (15 minutes for steps 01/02/04/05). Today, orders still in progress count as
-  failures. Now an order is judged after 60 minutes, so the dip at the right-hand edge of the charts goes away.
-* **Slow orders:** an order that takes longer than 60 minutes counts as a failure. To change this for a step,
-  change `3600` in its footer **and** `dispatch.earliest_time` to the new wait plus 2 hours.
+* **Data delay:** each step is 5–45 minutes behind (table above). Today, orders still in progress count as
+  failures. Now an order is judged only after its wait, so the dip at the right-hand edge of the charts goes away.
+* **Slow orders:** an order still running when its step's wait ends counts as a failure. Check each wait against
+  that step's current P99 latency. To change a step's wait, change the number in its footer
+  `floor((info_max_time - <seconds>) / 300)` **and** set `dispatch.earliest_time` to the new wait plus 60 minutes.
 * **Pending steps 03/07/10/35:** use the same recipe. Cut the master query at `All Order Types`, add the footer,
   then add the Grafana header to the tail.
 * **Fix later:** these issues in the original queries are carried over unchanged, so the numbers stay the same as today.
