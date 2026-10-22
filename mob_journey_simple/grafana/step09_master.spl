@@ -1,0 +1,35 @@
+index=summary_mob_journey step="09"
+| dedup order_key
+| eval order_type="All Order Types"
+| stats
+    count                          as total_orders
+    sum(slo_met)                   as within_slo
+    sum(eval(if(slo_met=0,1,0)))   as failure_count
+    avg(latency_sec)               as avg_latency_sec
+    perc10(latency_sec)            as p10_latency_sec
+    perc50(latency_sec)            as p50_latency_sec
+    perc90(latency_sec)            as p90_latency_sec
+    perc95(latency_sec)            as p95_latency_sec
+    perc99(latency_sec)            as p99_latency_sec
+    max(latency_sec)               as max_latency_sec
+    by order_type
+| eval avg_latency_sec=round(avg_latency_sec,2)
+| eval p10_latency_sec=round(p10_latency_sec,2)
+| eval p50_latency_sec=round(p50_latency_sec,2)
+| eval p90_latency_sec=round(p90_latency_sec,2)
+| eval p95_latency_sec=round(p95_latency_sec,2)
+| eval p99_latency_sec=round(p99_latency_sec,2)
+| eval max_latency_sec=round(max_latency_sec,2)
+| eval slo_percentage=round((within_slo/total_orders)*100,2)
+| eval slo_target="99.99%"
+| eval slo_status=case(slo_percentage>=99.99,"✅ MET",slo_percentage>=99.5,"🟠 AT RISK",true(),"❌ BREACHED")
+| eval is_selected=if(order_type="$order_type",1,0)
+| eval Step09     = if(is_selected=1, slo_percentage,  null())
+| eval Step09_P10 = if(is_selected=1, p10_latency_sec, null())
+| eval Step09_P50 = if(is_selected=1, p50_latency_sec, null())
+| eval Step09_P90 = if(is_selected=1, p90_latency_sec, null())
+| eval Step09_P95 = if(is_selected=1, p95_latency_sec, null())
+| eval Step09_P99 = if(is_selected=1, p99_latency_sec, null())
+| sort is_selected, order_type
+| appendpipe [ | stats sum(is_selected) as matched | where matched=0 | eval order_type="Not applicable", Step09=-1 | fields order_type Step09 ]
+| fields - is_selected matched

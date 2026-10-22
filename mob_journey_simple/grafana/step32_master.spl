@@ -1,0 +1,27 @@
+index=summary_mob_journey step="32"
+| dedup order_key
+| appendpipe
+    [
+      | eval Order_Type="All Order Types"
+    ]
+| stats
+    count as total_orders
+    sum(eligible_order) as eligible_total
+    sum(slo_met) as within_slo
+    sum(slo_breached) as total_slo_breached
+    avg(latency_minutes) as avg_latency_min
+    perc10(latency_minutes) as p10_latency_min
+    perc50(latency_minutes) as p50_latency_min
+    perc90(latency_minutes) as p90_latency_min
+    perc99(latency_minutes) as p99_latency_min
+    max(latency_minutes) as max_latency_min by Order_Type
+| rename Order_Type as order_type
+| eval avg_latency_min = round(avg_latency_min, 2)
+| eval p10_latency_min = round(p10_latency_min, 2)
+| eval p50_latency_min = round(p50_latency_min, 2)
+| eval p90_latency_min = round(p90_latency_min, 2)
+| eval p99_latency_min = round(p99_latency_min, 2)
+| eval slo_percentage = round((within_slo/eligible_total)*100, 2)
+| eval slo_target = 99
+| eval slo_status = if(slo_percentage>=slo_target,"✅ MET", "❌ BREACHED")
+| sort - total_orders

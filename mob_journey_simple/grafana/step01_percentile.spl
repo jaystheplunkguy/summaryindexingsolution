@@ -1,0 +1,12 @@
+index=summary_mob_journey step="01"
+| dedup order_key
+| appendpipe [ | eval order_type = "All Order Types" ]
+| bin _time span=30m
+| stats
+    sum(isValid) AS total_orders,
+    sum(isGood)  AS within_slo
+    BY _time order_type
+| where order_type="$order_type"
+| eval Step01 = if(total_orders>0, round(within_slo/total_orders*100, 2), null()),
+       Step01_Orders = total_orders
+| fields _time Step01 Step01_Orders

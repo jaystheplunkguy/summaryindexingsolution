@@ -1,0 +1,39 @@
+index=summary_mob_journey step="20"
+| dedup order_key
+| appendpipe [ | eval order_type = "All Order Types" ]
+| stats
+    count                                            AS total_orders,
+    sum(eval(if(msisdn_outcome="Success", 1, 0)))    AS within_slo,
+    sum(eval(if(msisdn_outcome="Failure", 1, 0)))    AS failure_count,
+    avg(latency_sec)                                 AS avg_latency_sec,
+    perc10(latency_sec)                              AS p10_latency_sec,
+    perc50(latency_sec)                              AS p50_latency_sec,
+    perc90(latency_sec)                              AS p90_latency_sec,
+    perc95(latency_sec)                              AS p95_latency_sec,
+    perc99(latency_sec)                              AS p99_latency_sec,
+    max(latency_sec)                                 AS max_latency_sec
+    BY order_type
+| eval avg_latency_sec = round(avg_latency_sec, 2)
+| eval p10_latency_sec = round(p10_latency_sec, 2)
+| eval p50_latency_sec = round(p50_latency_sec, 2)
+| eval p90_latency_sec = round(p90_latency_sec, 2)
+| eval p95_latency_sec = round(p95_latency_sec, 2)
+| eval p99_latency_sec = round(p99_latency_sec, 2)
+| eval slo_percentage = round((within_slo / total_orders) * 100, 2)
+| eval slo_target = "99.5%"
+| eval slo_status = if(slo_percentage >= 99.5, "✅ MET", "❌ BREACHED")
+| eval selected_order_type = case(
+    "$order_type"="Port In", "Port In",
+    "$order_type"="Port-In", "Port In",
+    true(), "$order_type"
+  )
+| eval is_selected = if(order_type=selected_order_type, 1, 0)
+| eval Step20     = if(is_selected=1, slo_percentage,  null())
+| eval Step20_P10 = if(is_selected=1, p10_latency_sec, null())
+| eval Step20_P50 = if(is_selected=1, p50_latency_sec, null())
+| eval Step20_P90 = if(is_selected=1, p90_latency_sec, null())
+| eval Step20_P95 = if(is_selected=1, p95_latency_sec, null())
+| eval Step20_P99 = if(is_selected=1, p99_latency_sec, null())
+| sort is_selected, order_type
+| appendpipe [ | stats sum(is_selected) AS matched | where matched=0 | eval order_type="Not applicable", Step20=-1 | fields order_type Step20 ]
+| fields - selected_order_type is_selected matched

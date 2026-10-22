@@ -1,0 +1,8 @@
+index=summary_mob_journey step="05"
+| dedup order_key
+| appendpipe
+    [ | eval Order_Type="All Order Types" ]
+| stats
+    count as total_orders by Order_Type
+| rename Order_Type as order_type
+| sort - total_orders

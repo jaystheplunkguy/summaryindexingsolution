@@ -1,0 +1,31 @@
+index=summary_mob_journey step="31"
+| dedup order_key
+| appendpipe [ | eval order_type = "All Order Types" ]
+| stats
+    count                                            AS total_orders,
+    sum(eval(if(branchc_outcome="Success", 1, 0)))   AS within_slo,
+    sum(eval(if(branchc_outcome="Failure", 1, 0)))   AS failure_count,
+    avg(latency_sec)                                 AS avg_latency_sec,
+    perc10(latency_sec)                              AS p10_latency_sec,
+    perc50(latency_sec)                              AS p50_latency_sec,
+    perc90(latency_sec)                              AS p90_latency_sec,
+    perc95(latency_sec)                              AS p95_latency_sec,
+    perc99(latency_sec)                              AS p99_latency_sec,
+    max(latency_sec)                                 AS max_latency_sec
+    BY order_type
+| eval avg_latency_sec = round(avg_latency_sec, 2)
+| eval p10_latency_sec = round(p10_latency_sec, 2)
+| eval p50_latency_sec = round(p50_latency_sec, 2)
+| eval p90_latency_sec = round(p90_latency_sec, 2)
+| eval p95_latency_sec = round(p95_latency_sec, 2)
+| eval p99_latency_sec = round(p99_latency_sec, 2)
+| eval slo_percentage = round((within_slo / total_orders) * 100, 2)
+| eval slo_target = "99%"
+| eval slo_status = if(slo_percentage >= 99, "✅ MET", "❌ BREACHED")
+| eval Step31     = slo_percentage
+| eval Step31_P10 = p10_latency_sec
+| eval Step31_P50 = p50_latency_sec
+| eval Step31_P90 = p90_latency_sec
+| eval Step31_P95 = p95_latency_sec
+| eval Step31_P99 = p99_latency_sec
+| sort order_type

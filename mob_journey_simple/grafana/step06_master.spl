@@ -1,0 +1,23 @@
+index=summary_mob_journey step="06"
+| dedup order_key
+| appendpipe
+    [
+      | eval Order_Type="All Order Types"
+    ]
+| stats
+    count as total_orders
+    sum(slo_met) as within_slo
+    avg(latency_seconds) as avg_latency_sec
+    perc10(latency_seconds) as p10_latency_sec
+    perc50(latency_seconds) as p50_latency_sec
+    perc90(latency_seconds) as p90_latency_sec
+    perc99(latency_seconds) as p99_latency_sec
+    max(latency_seconds) as max_latency_sec by Order_Type
+| rename Order_Type as order_type
+| eval avg_latency_sec = round(avg_latency_sec, 2)
+| eval p10_latency_sec = round(p10_latency_sec, 2)
+| eval p50_latency_sec = round(p50_latency_sec, 2)
+| eval p90_latency_sec = round(p90_latency_sec, 2)
+| eval p99_latency_sec = round(p99_latency_sec, 2)
+| eval slo_percentage = round((within_slo/total_orders)*100, 2)
+| sort - total_orders

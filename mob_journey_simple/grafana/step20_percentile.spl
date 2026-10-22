@@ -1,0 +1,29 @@
+index=summary_mob_journey step="20"
+| dedup order_key
+| appendpipe [ | eval order_type = "All Order Types" ]
+| eval _time = coalesce(end_time, start_time)
+| where isnotnull(_time)
+| bin _time span=30m
+| stats
+    count                                            AS total_orders,
+    sum(eval(if(msisdn_outcome="Success", 1, 0)))    AS within_slo,
+    perc10(latency_sec)                              AS p10_seconds,
+    perc50(latency_sec)                              AS p50_seconds,
+    perc90(latency_sec)                              AS p90_seconds,
+    perc95(latency_sec)                              AS p95_seconds,
+    perc99(latency_sec)                              AS p99_seconds
+    BY _time order_type
+| eval selected_order_type = case(
+    "$order_type"="Port In", "Port In",
+    "$order_type"="Port-In", "Port In",
+    true(), "$order_type"
+  )
+| where order_type=selected_order_type
+| eval Step20 = if(total_orders>0, round(within_slo/total_orders*100, 2), null()),
+       Step20_P10 = round(p10_seconds*1000, 2),
+       Step20_P50 = round(p50_seconds*1000, 2),
+       Step20_P90 = round(p90_seconds*1000, 2),
+       Step20_P95 = round(p95_seconds*1000, 2),
+       Step20_P99 = round(p99_seconds*1000, 2)
+| append [ | makeresults | eval _time=now(), Step20=-1 | where "$order_type"!="All Order Types" AND "$order_type"!="Connect" AND "$order_type"!="Port In" AND "$order_type"!="Port-In" AND "$order_type"!="Modify" ]
+| fields _time Step20 Step20_P10 Step20_P50 Step20_P90 Step20_P95 Step20_P99

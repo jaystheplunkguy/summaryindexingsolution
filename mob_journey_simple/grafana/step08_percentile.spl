@@ -1,0 +1,24 @@
+index=summary_mob_journey step="08"
+| dedup order_key
+| appendpipe [ | eval order_type = "All Order Types" ]
+| eval _time = coalesce(end_evt_time, start_evt_time)
+| where isnotnull(_time)
+| bin _time span=30m
+| stats
+    count               AS total_orders,
+    sum(slo_met)        AS within_slo,
+    perc10(latency_sec) AS p10_seconds,
+    perc50(latency_sec) AS p50_seconds,
+    perc90(latency_sec) AS p90_seconds,
+    perc95(latency_sec) AS p95_seconds,
+    perc99(latency_sec) AS p99_seconds
+    BY _time order_type
+| where order_type="$order_type"
+| eval Step08 = if(total_orders>0, round(within_slo/total_orders*100, 2), null()),
+       Step08_P10 = round(p10_seconds*1000, 2),
+       Step08_P50 = round(p50_seconds*1000, 2),
+       Step08_P90 = round(p90_seconds*1000, 2),
+       Step08_P95 = round(p95_seconds*1000, 2),
+       Step08_P99 = round(p99_seconds*1000, 2)
+| append [ | makeresults | eval _time=now(), Step08=-1 | where "$order_type"!="All Order Types" AND "$order_type"!="Connect" ]
+| fields _time Step08 Step08_P10 Step08_P50 Step08_P90 Step08_P95 Step08_P99

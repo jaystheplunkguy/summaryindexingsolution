@@ -1,0 +1,16 @@
+index=summary_mob_journey step="02"
+| dedup order_key
+| appendpipe [ | eval order_type = "All Order Types" ]
+| stats
+    sum(is_valid) AS total_orders,
+    sum(is_good)  AS within_slo
+    BY order_type
+| eval failure_count   = total_orders - within_slo
+| eval slo_percentage  = if(total_orders>0, round(within_slo/total_orders*100, 2), null())
+| eval slo_target      = "99.95%"
+| eval slo_status      = case(slo_percentage >= 99.95, "✅ MET", slo_percentage >= 99.5, "⚠ AT RISK", true(), "❌ BREACHED")
+| eval is_selected = if(order_type="$order_type", 1, 0)
+| eval Step02 = if(is_selected=1, slo_percentage, null())
+| sort is_selected, order_type
+| appendpipe [ | stats sum(is_selected) AS matched | where matched=0 | eval order_type="Not applicable", Step02=-1 | fields order_type Step02 ]
+| fields - is_selected matched
