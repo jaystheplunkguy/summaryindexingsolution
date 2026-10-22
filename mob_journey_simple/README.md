@@ -40,11 +40,11 @@ No lookups, KV stores, rules files or macros.
 
 ## Deploy
 1. Create the index (`indexes.conf`). Your Splunk role needs permission to write to it.
-2. Add `savedsearches.conf` to an app. Check that the searches run every 15 minutes, a few minutes apart.
+2. Add `savedsearches.conf` to an app. Check that the searches run every 5 minutes, a few minutes apart.
 3. **Backfill**: run each `MOB_STEPnn` search by hand, one day at a time. Replace the 4 footer lines from
    `| addinfo` to `| fields - info_* slot_end` with
    `| where _time >= relative_time(now(),"-2d@d") AND _time < relative_time(now(),"-1d@d")`
-   (step back a day each run, and set the time picker to cover that day plus 3 hours).
+   (step back a day each run, and set the time picker to cover that day plus the step's wait and 60 minutes).
 4. **Side-by-side test**: for 2–3 days, compare each new panel with the current raw panel over the same
    **closed** time range (ending at least 1 hour ago). The numbers should match.
 5. Switch the Grafana panel queries over.
