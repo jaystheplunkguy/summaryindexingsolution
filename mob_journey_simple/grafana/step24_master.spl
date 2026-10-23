@@ -1,5 +1,5 @@
 index=summary_mob_journey step="24"
-| dedup order_key
+| dedup order_key sortby -written_at
 | appendpipe [ | eval order_type = "All Order Types" ]
 | stats
     count                                            AS total_orders,

@@ -1,5 +1,5 @@
 index=summary_mob_journey step="22"
-| dedup order_key
+| dedup order_key sortby -written_at
 | appendpipe [ | eval order_type = "All Order Types" ]
 | eval latency_sec = call_network_epoch - validate_sim_epoch
 | eval sli_met = if(latency_sec>=0 AND latency_sec<=60, 1, 0)
